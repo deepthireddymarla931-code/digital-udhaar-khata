@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: digital_udhaar_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=${DB_HOST:-mysql-aiven-host.aivencloud.com}
+      - DB_PORT=${DB_PORT:-24479}
+      - DB_NAME=${DB_NAME:-udhaar_db}
+      - DB_USER=${DB_USER:-avnadmin}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_URL=${DB_URL:-jdbc:mysql://${DB_HOST:-localhost}:${DB_PORT:-3306}/${DB_NAME:-udhaar_db}?useSSL=true&requireSSL=true&verifyServerCertificate=false&enabledTLSProtocols=TLSv1.2,TLSv1.3&allowPublicKeyRetrieval=true}
+      - DDL_AUTO=${DDL_AUTO:-update}
+      - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      - JWT_EXPIRATION_MS=${JWT_EXPIRATION_MS:-86400000}
+      - AI_API_KEY=${AI_API_KEY:-mock_key}
+      - AI_API_URL=${AI_API_URL:-https://api.openai.com/v1/chat/completions}
+      - AI_MODEL=${AI_MODEL:-gpt-3.5-turbo}
+    networks:
+      - udhaar-network
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: digital_udhaar_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - udhaar-network
+    restart: always
+
+networks:
+  udhaar-network:
+    driver: bridge

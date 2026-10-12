@@ -1,0 +1,35 @@
+# render.yaml — Render Blueprint for backend auto-deploy
+services:
+  - type: web
+    name: digital-udhaar-backend
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRATION_MS
+        value: "86400000"
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_API_URL
+        value: "https://api.openai.com/v1/chat/completions"
+      - key: AI_MODEL
+        value: "gpt-3.5-turbo"
+      - key: SMS_PROVIDER
+        value: "SIMULATED"
+      - key: NODE_ENV
+        value: "production"
