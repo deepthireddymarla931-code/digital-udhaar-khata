@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { LanguageProvider } from './context/LanguageContext';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
@@ -41,8 +42,9 @@ const AppLayout = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <SocketProvider>
-        <BrowserRouter>
+      <LanguageProvider>
+        <SocketProvider>
+          <BrowserRouter>
           <Routes>
             {/* Public Auth Routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -84,7 +86,8 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
-      </SocketProvider>
+        </SocketProvider>
+      </LanguageProvider>
     </AuthProvider>
   );
 }

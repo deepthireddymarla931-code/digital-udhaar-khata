@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { 
   TrendingUp, ArrowUpRight, ArrowDownLeft, Users, CreditCard, 
   Plus, Sparkles, RefreshCw, Clock, ArrowRight, ShieldCheck, 
-  Bell, CheckCircle2, Wallet, Coins 
+  Bell, CheckCircle2, Wallet, Coins, QrCode 
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import SmartNlpBar from '../components/SmartNlpBar';
@@ -14,6 +14,8 @@ import AiReminderModal from '../components/AiReminderModal';
 import YouWillGetView from '../components/YouWillGetView';
 import YouWillGiveView from '../components/YouWillGiveView';
 import DueRemindersHub from '../components/DueRemindersHub';
+import UpiQrModal from '../components/UpiQrModal';
+import { useLanguage } from '../context/LanguageContext';
 import { transactionApi } from '../api/transactionApi';
 import { useSocket } from '../context/SocketContext';
 import { Link } from 'react-router-dom';
@@ -22,6 +24,7 @@ import {
 } from 'recharts';
 
 const DashboardPage = () => {
+  const { t } = useLanguage();
   const [summary, setSummary] = useState(null);
   const [marketSplit, setMarketSplit] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,7 @@ const DashboardPage = () => {
   const [isAddTxOpen, setIsAddTxOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [isUpiQrOpen, setIsUpiQrOpen] = useState(false);
   const [reminderCustomer, setReminderCustomer] = useState(null);
 
   // Pre-fill state for AddTransactionModal
@@ -133,7 +137,7 @@ const DashboardPage = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-slate-100 tracking-tight">
-              Ledger Overview & Analytics
+              {t('ledgerOverview')}
             </h1>
             <span
               className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
@@ -142,15 +146,25 @@ const DashboardPage = () => {
                   : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
               }`}
             >
-              {isConnected ? '● Live Syncing' : 'Connecting...'}
+              {isConnected ? `● ${t('liveSync')}` : t('reconnecting')}
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Real-time multi-device ledger updates, number-based Khata, and automated due-date reminders
+            {t('ledgerSubtext')}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Quick Store UPI QR Generator */}
+          <button
+            onClick={() => setIsUpiQrOpen(true)}
+            className="px-3.5 py-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+            title="Instant Store UPI QR"
+          >
+            <QrCode className="w-4 h-4 text-emerald-400" />
+            {t('collectUpi')}
+          </button>
+
           <button
             onClick={() => {
               setNlpPrefillData(null);
@@ -161,7 +175,7 @@ const DashboardPage = () => {
             className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition-all"
           >
             <Plus className="w-4 h-4" />
-            Add Entry
+            {t('addEntry')}
           </button>
 
           <button
@@ -169,7 +183,7 @@ const DashboardPage = () => {
             className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition-all"
           >
             <Users className="w-4 h-4 text-indigo-400" />
-            New Customer
+            {t('newCustomer')}
           </button>
         </div>
       </div>
@@ -184,16 +198,16 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* You Will Get (Debit / Udhaar Outstanding) */}
         <StatCard
-          title="You Will Get (Udhaar)"
+          title={t('youWillGet')}
           value={`₹${totalYouWillGet.toLocaleString()}`}
-          subtitle={`${marketSplit?.youWillGetCount || summary?.activeDebtorsCount || 0} active debtors owe you`}
+          subtitle={`${marketSplit?.youWillGetCount || summary?.activeDebtorsCount || 0} active debtors`}
           icon={ArrowUpRight}
           type="give"
         />
 
         {/* You Will Give (Credit / Advance Received) */}
         <StatCard
-          title="You Will Give (Advance)"
+          title={t('youWillGive')}
           value={`₹${totalYouWillGive.toLocaleString()}`}
           subtitle={`${marketSplit?.youWillGiveCount || 0} advance accounts held`}
           icon={ArrowDownLeft}
@@ -202,7 +216,7 @@ const DashboardPage = () => {
 
         {/* Net Market Balance */}
         <StatCard
-          title="Net Market Position"
+          title={t('netMarketPosition')}
           value={`₹${Math.abs(netMarketBalance).toLocaleString()}`}
           subtitle={netMarketBalance >= 0 ? 'Net Receivable (+)' : 'Net Payable (-)'}
           icon={Wallet}
@@ -229,7 +243,7 @@ const DashboardPage = () => {
               : 'text-slate-400 hover:text-slate-200 bg-slate-900/60 border border-slate-800'
           }`}
         >
-          Overview & Trends
+          {t('overview') || 'Overview & Trends'}
         </button>
 
         <button
@@ -241,7 +255,7 @@ const DashboardPage = () => {
           }`}
         >
           <ArrowUpRight className="w-3.5 h-3.5 text-rose-400" />
-          You Will Get ({marketSplit?.youWillGetCount || 0})
+          {t('youWillGet')} ({marketSplit?.youWillGetCount || 0})
         </button>
 
         <button
@@ -253,7 +267,7 @@ const DashboardPage = () => {
           }`}
         >
           <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-400" />
-          You Will Give ({marketSplit?.youWillGiveCount || 0})
+          {t('youWillGive')} ({marketSplit?.youWillGiveCount || 0})
         </button>
 
         <button
@@ -265,7 +279,7 @@ const DashboardPage = () => {
           }`}
         >
           <Clock className="w-3.5 h-3.5 text-indigo-400" />
-          Due Reminders Hub ({summary?.pendingRemindersCount || 0})
+          {t('dueReminders')} ({summary?.pendingRemindersCount || 0})
         </button>
       </div>
 
@@ -443,6 +457,13 @@ const DashboardPage = () => {
           customer={reminderCustomer}
         />
       )}
+
+      {/* Instant Store UPI QR Modal */}
+      <UpiQrModal
+        isOpen={isUpiQrOpen}
+        onClose={() => setIsUpiQrOpen(false)}
+        initialAmount={0}
+      />
     </div>
   );
 };

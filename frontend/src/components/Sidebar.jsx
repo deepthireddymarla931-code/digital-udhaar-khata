@@ -1,11 +1,14 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, Sparkles, FileText, ArrowRightLeft } from 'lucide-react';
+import { LayoutDashboard, Users, Sparkles, QrCode } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 const Sidebar = () => {
+  const { t } = useLanguage();
+
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/customers', label: 'Customers Directory', icon: Users },
+    { path: '/', label: t('dashboard'), icon: LayoutDashboard },
+    { path: '/customers', label: t('customersDirectory'), icon: Users },
   ];
 
   return (
@@ -36,26 +39,26 @@ const Sidebar = () => {
           </nav>
         </div>
 
-        {/* AI Features Highlight Card */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-900/40 to-purple-900/20 border border-indigo-500/20">
-          <div className="flex items-center gap-2 text-indigo-300 font-semibold text-xs mb-2">
+        {/* AI & Features Highlight Card */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-900/40 to-purple-900/20 border border-indigo-500/20 space-y-2">
+          <div className="flex items-center gap-2 text-indigo-300 font-semibold text-xs">
             <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />
-            AI Assistant Ready
+            AI Assistant & UPI Ready
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
-            Natural language entry, automated WhatsApp reminders, and credit risk scoring active.
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Dynamic UPI QR codes, instant WhatsApp reminders, and PDF statements enabled.
           </p>
-          <div className="text-[10px] text-indigo-400 font-medium flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-            Aiven MySQL Cloud Linked
+          <div className="text-[10px] text-emerald-400 font-medium flex items-center gap-1.5 pt-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            Real-Time Engine Active
           </div>
         </div>
       </div>
 
       {/* Quick Footer Info */}
       <div className="text-xs text-slate-500 px-3 border-t border-slate-800/60 pt-4">
-        <p className="font-semibold text-slate-400">Digital Udhaar Khata</p>
-        <p className="text-[10px]">v1.0.0 • Production Ready</p>
+        <p className="font-semibold text-slate-400">{t('appName')}</p>
+        <p className="text-[10px]">v2.2.0 • Real-Time Cloud Edition</p>
       </div>
     </aside>
   );

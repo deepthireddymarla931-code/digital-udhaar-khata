@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { ArrowUpRight, Send, AlertTriangle, ShieldAlert, ShieldCheck, Phone, ExternalLink } from 'lucide-react';
+import { ArrowUpRight, Send, AlertTriangle, ShieldAlert, ShieldCheck, Phone, ExternalLink, QrCode } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CustomerRiskBadge from './CustomerRiskBadge';
+import UpiQrModal from './UpiQrModal';
+import { useLanguage } from '../context/LanguageContext';
 
 const YouWillGetView = ({ customers = [], onSendReminder, onAddEntry }) => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
+  const [qrCustomer, setQrCustomer] = useState(null);
 
   const filtered = customers.filter(
     (c) =>
@@ -18,7 +22,7 @@ const YouWillGetView = ({ customers = [], onSendReminder, onAddEntry }) => {
         <div>
           <h3 className="font-extrabold text-base text-slate-100 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-            You Will Get (Udhaar / Debtors List)
+            {t('youWillGet')}
           </h3>
           <p className="text-xs text-slate-400">
             Customers with pending market credit who owe you money
@@ -88,7 +92,16 @@ const YouWillGetView = ({ customers = [], onSendReminder, onAddEntry }) => {
                     </td>
 
                     <td className="py-3 px-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setQrCustomer(c)}
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold text-[11px] flex items-center gap-1 transition-all"
+                          title="Generate UPI Payment QR"
+                        >
+                          <QrCode className="w-3 h-3 text-emerald-400" />
+                          UPI QR
+                        </button>
+
                         <button
                           onClick={() => onSendReminder && onSendReminder(c)}
                           className="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-bold text-[11px] flex items-center gap-1 transition-all"
@@ -100,7 +113,7 @@ const YouWillGetView = ({ customers = [], onSendReminder, onAddEntry }) => {
 
                         <button
                           onClick={() => onAddEntry && onAddEntry(c, 'RECEIVE')}
-                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold text-[11px] flex items-center gap-1 transition-all"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-[11px] flex items-center gap-1 transition-all"
                           title="Record Payment (Paisa Mila)"
                         >
                           + Receive
@@ -118,6 +131,14 @@ const YouWillGetView = ({ customers = [], onSendReminder, onAddEntry }) => {
           No active debtors who owe you money. Market credit position is completely clear!
         </div>
       )}
+
+      {/* Dynamic UPI QR Modal for selected customer */}
+      <UpiQrModal
+        isOpen={!!qrCustomer}
+        onClose={() => setQrCustomer(null)}
+        customer={qrCustomer}
+        initialAmount={qrCustomer?.netBalance || 0}
+      />
     </div>
   );
 };

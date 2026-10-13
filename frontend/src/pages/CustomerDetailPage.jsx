@@ -2,18 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Phone, Mail, MapPin, Plus, ArrowUpRight, ArrowDownLeft, 
-  Send, Download, ShieldCheck, ShieldAlert, Sparkles, Loader2, Calendar, Clock 
+  Send, Download, ShieldCheck, ShieldAlert, Sparkles, Loader2, Calendar, Clock,
+  QrCode, FileSpreadsheet
 } from 'lucide-react';
 import { customerApi } from '../api/customerApi';
 import { transactionApi } from '../api/transactionApi';
 import { aiApi } from '../api/aiApi';
 import { reminderApi } from '../api/reminderApi';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import CustomerRiskBadge from '../components/CustomerRiskBadge';
 import AddTransactionModal from '../components/AddTransactionModal';
 import AiReminderModal from '../components/AiReminderModal';
+import UpiQrModal from '../components/UpiQrModal';
+import { generateCustomerPdfStatement, exportCustomerStatementCsv } from '../utils/statementExporter';
 
 const CustomerDetailPage = () => {
   const { id } = useParams();
+  const { user } = useAuth();
+  const { t } = useLanguage();
+
   const [customer, setCustomer] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [riskAssessment, setRiskAssessment] = useState(null);
@@ -23,7 +31,7 @@ const CustomerDetailPage = () => {
   const [isAddTxOpen, setIsAddTxOpen] = useState(false);
   const [txType, setTxType] = useState('GIVE');
   const [isReminderOpen, setIsReminderOpen] = useState(false);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [isUpiQrOpen, setIsUpiQrOpen] = useState(false);
   const [sendingReminderId, setSendingReminderId] = useState(null);
 
   const fetchCustomerDetails = async () => {
@@ -48,22 +56,21 @@ const CustomerDetailPage = () => {
     if (id) fetchCustomerDetails();
   }, [id]);
 
-  const handleDownloadPdf = async () => {
-    setDownloadingPdf(true);
+  const handleDownloadPdf = () => {
     try {
-      const response = await aiApi.downloadPdfStatement(id);
-      const blob = new Blob([response.data], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Statement_${customer?.name || 'Customer'}_${id}.txt`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      generateCustomerPdfStatement(customer, transactions, user || {});
     } catch (err) {
-      alert('Failed to download statement');
-    } finally {
-      setDownloadingPdf(false);
+      console.error('Error generating PDF statement:', err);
+      alert('Failed to generate PDF statement: ' + err.message);
+    }
+  };
+
+  const handleExportCsv = () => {
+    try {
+      exportCustomerStatementCsv(customer, transactions, user || {});
+    } catch (err) {
+      console.error('Error exporting CSV statement:', err);
+      alert('Failed to export CSV: ' + err.message);
     }
   };
 
@@ -150,7 +157,7 @@ const CustomerDetailPage = () => {
               className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition-all"
             >
               <ArrowUpRight className="w-4 h-4" />
-              Give Udhaar (Red)
+              {t('giveUdhaar')}
             </button>
 
             <button
@@ -158,44 +165,66 @@ const CustomerDetailPage = () => {
               className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-600/30 transition-all"
             >
               <ArrowDownLeft className="w-4 h-4" />
-              Receive Paisa (Green)
+              {t('receivePaisa')}
             </button>
 
             {owesMoney && (
               <button
-                onClick={() => setIsReminderOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-bold text-xs flex items-center gap-1.5 transition-all"
+                onClick={() => setIsUpiQrOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-950/40 transition-all"
+                title="Generate instant UPI Payment QR for this customer"
               >
-                <Send className="w-4 h-4" />
-                AI WhatsApp Reminder
+                <QrCode className="w-4 h-4 text-emerald-400" />
+                {t('upiQrCollect')}
               </button>
             )}
 
-            <button
-              onClick={handleDownloadPdf}
-              disabled={downloadingPdf}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition-all"
-            >
-              {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 text-indigo-400" />}
-              Account Statement
-            </button>
+            {owesMoney && (
+              <button
+                onClick={() => setIsReminderOpen(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-bold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <Send className="w-4 h-4" />
+                {t('whatsappReminder')}
+              </button>
+            )}
+
+            {/* Export Action Buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleDownloadPdf}
+                className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition-all"
+                title="Download Branded PDF Statement"
+              >
+                <Download className="w-4 h-4 text-indigo-400" />
+                PDF
+              </button>
+              <button
+                onClick={handleExportCsv}
+                className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition-all"
+                title="Export CSV Statement for Excel"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                CSV
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Credit Limit & Balance Summary Bar */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-800">
           <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Net Balance</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('netBalance')}</span>
             <p className={`text-2xl font-black mt-1 ${owesMoney ? 'text-rose-400' : customer.netBalance < 0 ? 'text-emerald-400' : 'text-slate-200'}`}>
               ₹{Math.abs(customer.netBalance).toLocaleString()}
               <span className="text-xs font-normal ml-2 text-slate-400">
-                ({owesMoney ? 'Customer Owes (You Will Get)' : customer.netBalance < 0 ? 'Advance Credit (You Will Give)' : 'Settled'})
+                ({owesMoney ? `${t('youWillGet')} - Customer Owes` : customer.netBalance < 0 ? `${t('youWillGive')} - Advance Credit` : t('settled')})
               </span>
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Credit Limit Utilization</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('creditLimit')} Utilization</span>
             <div className="flex items-center justify-between text-xs font-bold text-slate-200 mt-1">
               <span>Used: ₹{customer.netBalance > 0 ? customer.netBalance : 0}</span>
               <span>Limit: ₹{creditLimit.toLocaleString()}</span>
@@ -233,7 +262,7 @@ const CustomerDetailPage = () => {
 
       {/* Transaction History Table */}
       <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-4">
-        <h3 className="font-extrabold text-base text-slate-100">Ledger Transaction History</h3>
+        <h3 className="font-extrabold text-base text-slate-100">{t('customerLedgerHistory')}</h3>
 
         {transactions.length > 0 ? (
           <div className="overflow-x-auto">
@@ -275,7 +304,7 @@ const CustomerDetailPage = () => {
                         <div>{tx.note || '-'}</div>
                         {tx.dueDate && (
                           <div className="text-[10px] text-indigo-400 font-medium flex items-center gap-1 mt-0.5">
-                            <Clock className="w-3 h-3" /> Due: {new Date(tx.dueDate).toLocaleString()} ({tx.reminderStatus || 'Scheduled'})
+                            <Clock className="w-3.5 h-3.5" /> Due: {new Date(tx.dueDate).toLocaleString()} ({tx.reminderStatus || 'Scheduled'})
                           </div>
                         )}
                       </td>
@@ -303,7 +332,7 @@ const CustomerDetailPage = () => {
           </div>
         ) : (
           <div className="py-12 text-center text-slate-500 text-xs">
-            No entries recorded for {customer.name} yet. Click "Give Udhaar" or "Receive Paisa" above!
+            {t('noTransactions')}. Click "{t('giveUdhaar')}" or "{t('receivePaisa')}" above!
           </div>
         )}
       </div>
@@ -321,6 +350,13 @@ const CustomerDetailPage = () => {
         isOpen={isReminderOpen}
         onClose={() => setIsReminderOpen(false)}
         customer={customer}
+      />
+
+      <UpiQrModal
+        isOpen={isUpiQrOpen}
+        onClose={() => setIsUpiQrOpen(false)}
+        customer={customer}
+        initialAmount={customer.netBalance > 0 ? customer.netBalance : 0}
       />
     </div>
   );
