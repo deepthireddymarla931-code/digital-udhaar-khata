@@ -1,11 +1,12 @@
 # render.yaml — Digital Udhaar Khata Full-Stack Cloud Blueprint
 services:
-  # 1. React + Vite Frontend (100% Free Global Static Site)
-  - type: static
+  # 1. React + Vite Frontend (Static Site on Global CDN)
+  - type: web
     name: digital-udhaar-frontend
+    runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    staticPublishPath: ./dist
     routes:
       - type: rewrite
         source: /*
