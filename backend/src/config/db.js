@@ -30,6 +30,69 @@ async function initializeDatabase() {
     const connection = await pool.getConnection();
     console.log(`🐬 Connected to MySQL Database: ${DB_NAME} @ ${DB_HOST}:${DB_PORT}`);
 
+    // Ensure core tables exist automatically
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS merchants (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        shop_name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        phone VARCHAR(50) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'ROLE_MERCHANT',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        merchant_id BIGINT NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50) NOT NULL,
+        email VARCHAR(255),
+        address TEXT,
+        credit_limit DECIMAL(12, 2) DEFAULT 10000.00,
+        risk_level VARCHAR(50) DEFAULT 'LOW',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        merchant_id BIGINT NOT NULL,
+        customer_id BIGINT NOT NULL,
+        customer_name VARCHAR(255) NOT NULL,
+        customer_phone VARCHAR(50),
+        amount DECIMAL(12, 2) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        payment_mode VARCHAR(50) DEFAULT 'CASH',
+        note TEXT,
+        due_date DATETIME NULL,
+        reminder_status VARCHAR(30) DEFAULT 'NONE',
+        reminder_sent_at DATETIME NULL,
+        reminder_channel VARCHAR(30) DEFAULT 'SMS',
+        reminder_note TEXT NULL,
+        transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        merchant_id BIGINT,
+        action VARCHAR(255) NOT NULL,
+        details TEXT,
+        ip_address VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     // Ensure transactions table has due_date and reminder columns
     const [cols] = await connection.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'transactions'`,
