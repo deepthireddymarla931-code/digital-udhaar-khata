@@ -45,7 +45,22 @@ app.use('/api/v1/reminders', reminderRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/statements', statementRoutes);
 
-// 404 Handler
+const path = require('path');
+const fs = require('fs');
+
+// Serve static frontend SPA build if present
+const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
+
+// 404 Handler for API
 app.use((req, res) => {
   res.status(404).json({ message: `Endpoint ${req.method} ${req.url} not found` });
 });

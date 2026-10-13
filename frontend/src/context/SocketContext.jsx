@@ -11,13 +11,16 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     // In dev: Vite proxies /api to 8080, but Socket.io needs direct connection to :8080
     // In production: VITE_SOCKET_URL should point to the Render backend URL (e.g. https://digital-udhaar-backend.onrender.com)
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || (
+    let rawSocketUrl = import.meta.env.VITE_SOCKET_URL || (
       import.meta.env.DEV
         ? `http://${window.location.hostname}:8080`
         : window.location.origin
     );
+    if (rawSocketUrl && !rawSocketUrl.startsWith('http://') && !rawSocketUrl.startsWith('https://')) {
+      rawSocketUrl = `https://${rawSocketUrl}`;
+    }
     
-    const socketInstance = io(socketUrl, {
+    const socketInstance = io(rawSocketUrl, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,

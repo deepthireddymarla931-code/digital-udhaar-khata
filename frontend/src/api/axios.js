@@ -1,9 +1,16 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+let rawBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+
+// If Render injected just the hostname (e.g. fromService: property: host)
+if (rawBaseUrl && !rawBaseUrl.startsWith('http://') && !rawBaseUrl.startsWith('https://') && !rawBaseUrl.startsWith('/')) {
+  rawBaseUrl = `https://${rawBaseUrl}/api/v1`;
+} else if (rawBaseUrl.startsWith('http') && !rawBaseUrl.includes('/api')) {
+  rawBaseUrl = `${rawBaseUrl.replace(/\/+$/, '')}/api/v1`;
+}
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: rawBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
