@@ -144,6 +144,36 @@ async function initializeDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // Ensure default demo merchant and sample customers exist
+    const [existingMerchants] = await connection.query('SELECT id FROM merchants LIMIT 1');
+    if (existingMerchants.length === 0) {
+      console.log('🌱 Seeding default demo merchant (Rajesh Sharma)...');
+      await connection.query(`
+        INSERT INTO merchants (id, name, shop_name, email, phone, password, role)
+        VALUES (1, 'Rajesh Sharma', 'Sharma General Store', 'merchant@example.com', '9876543210', 'password123', 'ROLE_MERCHANT')
+      `);
+
+      console.log('🌱 Seeding sample customer credit accounts...');
+      await connection.query(`
+        INSERT INTO customers (id, merchant_id, name, phone, email, address, credit_limit, risk_level)
+        VALUES 
+          (1, 1, 'Ramesh Kumar', '9876543211', 'ramesh@example.com', 'Sector 4, Main Market', 15000.00, 'LOW'),
+          (2, 1, 'Priya Singh', '9876543212', 'priya@example.com', 'Lane 2, Vikas Nagar', 10000.00, 'MEDIUM'),
+          (3, 1, 'Amit Verma', '9876543213', 'amit@example.com', 'Shop 12, Gandhi Chowk', 8000.00, 'HIGH')
+      `);
+
+      console.log('🌱 Seeding sample ledger entries...');
+      await connection.query(`
+        INSERT INTO transactions (merchant_id, customer_id, customer_name, customer_phone, amount, type, payment_mode, note, due_date)
+        VALUES
+          (1, 1, 'Ramesh Kumar', '9876543211', 4500.00, 'GIVE', 'CASH', 'Grocery on credit', DATE_ADD(NOW(), INTERVAL 3 DAY)),
+          (1, 2, 'Priya Singh', '9876543212', 3200.00, 'GIVE', 'CASH', 'Household items', DATE_ADD(NOW(), INTERVAL 5 DAY)),
+          (1, 1, 'Ramesh Kumar', '9876543211', 1500.00, 'RECEIVE', 'ONLINE', 'Part payment via UPI', NULL),
+          (1, 3, 'Amit Verma', '9876543213', 7500.00, 'GIVE', 'CASH', 'Bulk supply', DATE_SUB(NOW(), INTERVAL 1 DAY))
+      `);
+      console.log('✅ Demo seed data initialized successfully!');
+    }
+
     connection.release();
     console.log('✅ Database schema verified and automated migrations applied successfully.');
   } catch (err) {
