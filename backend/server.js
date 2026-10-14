@@ -56,5 +56,3 @@ process.on('SIGINT', () => {
   stopReminderScheduler();
   server.close(() => process.exit(0));
 });
-
-startServer();
