@@ -3,11 +3,13 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
-const DB_HOST = process.env.DB_HOST || 'localhost';
-const DB_PORT = parseInt(process.env.DB_PORT || '3306', 10);
-const DB_USER = process.env.DB_USER || 'root';
+const isProd = process.env.NODE_ENV === 'production';
+const DB_HOST = process.env.DB_HOST || (isProd ? 'mysql-179402c5-digitaludharkhata.i.aivencloud.com' : 'localhost');
+const DB_PORT = parseInt(process.env.DB_PORT || (isProd ? '13167' : '3306'), 10);
+const DB_USER = process.env.DB_USER || (isProd ? 'avnadmin' : 'root');
 const DB_PASSWORD = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'root';
-const DB_NAME = process.env.DB_NAME || 'udhaar_db';
+const DB_NAME = process.env.DB_NAME || (isProd ? 'defaultdb' : 'udhaar_db');
+const useSsl = process.env.DB_SSL === 'true' || isProd;
 
 const pool = mysql.createPool({
   host: DB_HOST,
@@ -15,10 +17,11 @@ const pool = mysql.createPool({
   user: DB_USER,
   password: DB_PASSWORD,
   database: DB_NAME,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+  ssl: useSsl ? { rejectUnauthorized: false } : undefined,
   waitForConnections: true,
-  connectionLimit: 15,
+  connectionLimit: 10,
   queueLimit: 0,
+  connectTimeout: 8000,
 });
 
 /**

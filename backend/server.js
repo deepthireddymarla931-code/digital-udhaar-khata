@@ -24,28 +24,25 @@ const io = new Server(server, {
 
 initSocket(io);
 
-// Start server after verifying database
-async function startServer() {
+// Start server immediately so cloud health checks succeed without delay
+server.listen(PORT, () => {
+  console.log(`\n======================================================`);
+  console.log(`🚀 Digital Udhaar Khata Real-Time Engine is LIVE!`);
+  console.log(`   Backend API:    http://localhost:${PORT}/api/v1`);
+  console.log(`   Socket.io:      ws://localhost:${PORT}`);
+  console.log(`   Scheduler:      node-cron automated reminder checks active`);
+  console.log(`======================================================\n`);
+});
+
+// Initialize database schema and start scheduler
+(async () => {
   try {
     await initializeDatabase();
-
-    // Start background cron scheduler for due date & time reminders
     startReminderScheduler();
-
-    server.listen(PORT, () => {
-      console.log(`\n======================================================`);
-      console.log(`🚀 Digital Udhaar Khata Real-Time Engine is LIVE!`);
-      console.log(`   Backend API:    http://localhost:${PORT}/api/v1`);
-      console.log(`   Socket.io:      ws://localhost:${PORT}`);
-      console.log(`   Database:       MySQL (udhaar_db)`);
-      console.log(`   Scheduler:      node-cron automated reminder checks active`);
-      console.log(`======================================================\n`);
-    });
   } catch (err) {
-    console.error('❌ Failed to boot backend engine:', err);
-    process.exit(1);
+    console.error('⚠️ Database init or scheduler warning:', err.message);
   }
-}
+})();
 
 // Graceful termination handling
 process.on('SIGTERM', () => {

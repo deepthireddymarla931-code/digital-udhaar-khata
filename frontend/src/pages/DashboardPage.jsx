@@ -88,6 +88,14 @@ const DashboardPage = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
+  useEffect(() => {
+    const handleOfflineUpdate = () => {
+      fetchDashboardData();
+    };
+    window.addEventListener('duk:offline_data_updated', handleOfflineUpdate);
+    return () => window.removeEventListener('duk:offline_data_updated', handleOfflineUpdate);
+  }, [fetchDashboardData]);
+
   // Real-Time Multi-Device WebSocket Sync:
   // When another device or cron job records a transaction or reminder, state updates instantly!
   useEffect(() => {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowUpRight, ArrowDownLeft, Loader2, Calendar, Bell, MessageSquare, Clock } from 'lucide-react';
+import { X, ArrowUpRight, ArrowDownLeft, Loader2, Calendar, Bell, MessageSquare, Clock, UserPlus, CheckCircle2 } from 'lucide-react';
 import { transactionApi } from '../api/transactionApi';
 import { customerApi } from '../api/customerApi';
+import { offlineStore } from '../utils/offlineStore';
 
 const AddTransactionModal = ({
   isOpen,
@@ -18,6 +19,12 @@ const AddTransactionModal = ({
   const [paymentMode, setPaymentMode] = useState('CASH');
   const [note, setNote] = useState('');
 
+  // Quick inline customer creation
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('');
+  const [addingCustomer, setAddingCustomer] = useState(false);
+
   // Automated Due Date & Reminder Features (Core Feature 2)
   const [hasDueDate, setHasDueDate] = useState(false);
   const [dueDate, setDueDate] = useState('');
@@ -31,19 +38,34 @@ const AddTransactionModal = ({
     if (isOpen) {
       customerApi.getAll()
         .then((res) => {
-          setCustomers(res.data);
+          const list = (res && res.data && res.data.length > 0) ? res.data : offlineStore.getCustomers();
+          setCustomers(list);
+
           if (initialData && initialData.customerName) {
-            const matched = res.data.find(c => 
+            const matched = list.find((c) =>
               c.name.toLowerCase().includes(initialData.customerName.toLowerCase())
             );
-            if (matched) setCustomerId(matched.id);
+            if (matched) {
+              setCustomerId(matched.id);
+            } else if (list.length > 0) {
+              setCustomerId(list[0].id);
+            }
           } else if (preSelectedCustomerId) {
             setCustomerId(preSelectedCustomerId);
-          } else if (res.data.length > 0) {
-            setCustomerId(res.data[0].id);
+          } else if (list.length > 0) {
+            setCustomerId(list[0].id);
           }
         })
-        .catch(console.error);
+        .catch((err) => {
+          console.warn('Fallback to offlineStore in modal:', err);
+          const list = offlineStore.getCustomers();
+          setCustomers(list);
+          if (preSelectedCustomerId) {
+            setCustomerId(preSelectedCustomerId);
+          } else if (list.length > 0) {
+            setCustomerId(list[0].id);
+          }
+        });
 
       if (initialData) {
         if (initialData.amount) setAmount(initialData.amount.toString());
@@ -60,15 +82,58 @@ const AddTransactionModal = ({
       tomorrow.setHours(10, 0, 0, 0);
       const isoLocal = tomorrow.toISOString().slice(0, 16);
       setDueDate(isoLocal);
+      setShowQuickAdd(false);
+      setNewCustName('');
+      setNewCustPhone('');
     }
   }, [isOpen, initialData, preSelectedCustomerId, defaultType]);
 
   if (!isOpen) return null;
 
+  const handleQuickAddCustomer = async (e) => {
+    e.preventDefault();
+    if (!newCustName.trim() || !newCustPhone.trim()) {
+      setError('Please provide customer name and phone number');
+      return;
+    }
+    setAddingCustomer(true);
+    setError('');
+    try {
+      const res = await customerApi.quickLookupOrCreate({
+        name: newCustName.trim(),
+        phone: newCustPhone.trim(),
+        creditLimit: 10000,
+      });
+
+      const newCustomer = res.data?.customer || res.data;
+      if (newCustomer) {
+        setCustomers((prev) => [newCustomer, ...prev.filter((c) => c.id !== newCustomer.id)]);
+        setCustomerId(newCustomer.id);
+        setShowQuickAdd(false);
+        setNewCustName('');
+        setNewCustPhone('');
+      }
+    } catch (err) {
+      console.warn('Error during quick add, creating locally:', err);
+      const created = offlineStore.addCustomerLocally({
+        name: newCustName.trim(),
+        phone: newCustPhone.trim(),
+        creditLimit: 10000,
+      });
+      setCustomers((prev) => [created, ...prev]);
+      setCustomerId(created.id);
+      setShowQuickAdd(false);
+      setNewCustName('');
+      setNewCustPhone('');
+    } finally {
+      setAddingCustomer(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!customerId) {
-      setError('Please select or specify a customer');
+      setError('Please select or add a customer to proceed');
       return;
     }
     if (!amount || parseFloat(amount) <= 0) {
@@ -92,7 +157,19 @@ const AddTransactionModal = ({
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to record entry');
+      console.warn('API error recording entry, saving locally:', err);
+      offlineStore.addTransactionLocally({
+        customerId: parseInt(customerId, 10),
+        amount: parseFloat(amount),
+        type,
+        paymentMode,
+        note,
+        dueDate: hasDueDate && type === 'GIVE' ? dueDate : null,
+        reminderChannel: hasDueDate ? reminderChannel : 'SMS',
+        reminderNote: hasDueDate ? reminderNote : '',
+      });
+      onSuccess();
+      onClose();
     } finally {
       setLoading(false);
     }
@@ -153,30 +230,72 @@ const AddTransactionModal = ({
             </button>
           </div>
 
-          {/* Customer Selection */}
+          {/* Customer Selection Header with Quick Add Button */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-              Select Customer
-            </label>
-            <select
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              className="w-full bg-slate-950 text-slate-100 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 font-medium"
-              required
-            >
-              <option value="">-- Choose Customer --</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.phone}) — {c.netBalance > 0 ? `Owes ₹${c.netBalance}` : `Advance ₹${Math.abs(c.netBalance)}`}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Select Customer *
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowQuickAdd(!showQuickAdd)}
+                className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                {showQuickAdd ? 'Select Existing' : '+ Add New Customer'}
+              </button>
+            </div>
+
+            {/* Quick Inline Customer Creation Form */}
+            {showQuickAdd ? (
+              <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-indigo-500/30 space-y-2.5 animate-fade-in">
+                <p className="text-[11px] font-bold text-indigo-300">Quickly add customer details:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Customer Name (e.g. Ramesh)"
+                    value={newCustName}
+                    onChange={(e) => setNewCustName(e.target.value)}
+                    className="w-full bg-slate-900 text-slate-100 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-medium"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Mobile Number (e.g. 9876543210)"
+                    value={newCustPhone}
+                    onChange={(e) => setNewCustPhone(e.target.value)}
+                    className="w-full bg-slate-900 text-slate-100 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-medium"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleQuickAddCustomer}
+                  disabled={addingCustomer || !newCustName.trim() || !newCustPhone.trim()}
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {addingCustomer ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save & Select Customer'}
+                </button>
+              </div>
+            ) : (
+              <select
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                className="w-full bg-slate-950 text-slate-100 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 font-medium"
+                required
+              >
+                <option value="">-- Choose Customer --</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.phone}) — {c.netBalance > 0 ? `Owes ₹${c.netBalance.toLocaleString()}` : c.netBalance < 0 ? `Advance ₹${Math.abs(c.netBalance).toLocaleString()}` : 'Settled'}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Amount Field */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-              Amount (₹)
+              Amount (₹) *
             </label>
             <div className="relative">
               <span className="absolute left-4 top-3 text-slate-400 font-bold text-base">₹</span>
